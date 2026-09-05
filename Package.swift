@@ -8,7 +8,9 @@ var package = Package(
     name: "Libsql",
     platforms: [ .iOS(.v12), .macOS(.v10_13) ],
     products: [
-        .library(name: "Libsql", targets: ["Libsql"]),
+        // Dynamic so the bundled SQLite lives in its own image and cannot
+        // collide with other statically linked SQLite clients in the app.
+        .library(name: "Libsql", type: .dynamic, targets: ["Libsql"]),
         
         // Examples
         .executable(name: "Query", targets: ["Query"]),
