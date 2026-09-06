@@ -408,7 +408,8 @@ public class Database {
         readYourWrites: Bool = true,
         encryptionKey: String? = nil,
         syncInterval: UInt64 = 0,
-        withWebpki: Bool = false
+        withWebpki: Bool = false,
+        disableRemoteWrites: Bool = false
     ) throws {
         self.inner = try path.withCString { path in
             try url.withCString { url in
@@ -422,10 +423,11 @@ public class Database {
                         desc.disable_read_your_writes = !readYourWrites
                         desc.sync_interval = syncInterval
                         desc.webpki = withWebpki
-                        
+                        desc.disable_remote_writes = disableRemoteWrites
+
                         let db = libsql_database_init(desc)
                         try errIf(db.err)
-                        
+
                         return db
                     }
                 }
