@@ -4,8 +4,6 @@ set -xe +f
 
 cd libsql-c
 
-export IPHONEOS_DEPLOYMENT_TARGET=15.1
-
 function build_ios() {
     iphone=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk
     iphonesimulator=/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk
