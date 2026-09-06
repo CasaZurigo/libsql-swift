@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "Package.swift"
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pull the latest Apple build from libsql-c
+        run: |
+          rm -rf Sources/CLibsql/CLibsql.xcframework
+          gh release download latest --repo CasaZurigo/libsql-c --pattern "CLibsql.xcframework.zip"
+          unzip -q CLibsql.xcframework.zip -d Sources/CLibsql
+          rm CLibsql.xcframework.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compute the next patch tag
+        id: version
+        run: |
+          BASE="$(
+            gh api repos/tursodatabase/libsql-swift/tags --paginate --jq '.[].name' \
+              | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1
+          )"
+          CZ_NUMBER="$(
+            git tag --list '*-cz.*' --sort=-v:refname \
+              | head -1 | sed -E 's/.*-cz\.([0-9]+)$/\1/'
+          )"
+          CZ_NUMBER="${CZ_NUMBER:-0}"
+          TAG="$BASE-cz.$((CZ_NUMBER + 1))"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Commit, tag, and release
+        run: |
+          git config user.name "casa-zurigo-ci"
+          git config user.email "ci@casazuri.ch"
+          git add Sources/CLibsql/CLibsql.xcframework
+          if git diff --cached --quiet; then
+            echo "xcframework unchanged; skipping release"
+            exit 0
+          fi
+          TAG="${{ steps.version.outputs.tag }}"
+          git commit -m "Vendor CLibsql from CasaZurigo/libsql-c@latest for $TAG"
+          git tag "$TAG"
+          git push origin main "$TAG"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Libsql Swift wrapper on top of the CasaZurigo libsql-c Apple build (${{ steps.version.outputs.base }} upstream base)."
+        env:
+          GH_TOKEN: ${{ github.token }}
